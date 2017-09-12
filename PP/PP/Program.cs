@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +12,7 @@ namespace PP
     {
         static void Main(string[] args)
         {
-            RWSlimTest();
+            DictionaryTest();
         }
 
 
@@ -114,6 +115,93 @@ namespace PP
             Console.WriteLine("Press enter to finish");
             Console.ReadLine();
 
+        }
+
+        static void QueueTest()
+        {
+            var sharedQueue = new ConcurrentQueue<int>();
+
+            for (int i = 0; i < 1000; i++)
+            {
+                sharedQueue.Enqueue(i);
+            }
+
+            int itemCount = 0;
+
+            Task[] tasks = new Task[10];
+
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                tasks[i] = new Task(() =>
+                  {
+                      while (sharedQueue.Count > 0)
+                      {
+                          int queueElement;
+                          bool gotElement = sharedQueue.TryDequeue(out queueElement);
+                          if(gotElement)
+                            Interlocked.Increment(ref itemCount);
+                      }
+                  });
+                tasks[i].Start();
+            }
+
+            Task.WaitAll(tasks);
+
+            // report on the number of items processed
+            Console.WriteLine("Items processed: {0}", itemCount);
+            // wait for input before exiting
+            Console.WriteLine("Press enter to finish");
+            Console.ReadLine();
+        }
+
+        static void DictionaryTest()
+        {
+            var account = new BankAcount();
+
+            var sharedDict = new ConcurrentDictionary<object, int>();
+
+            var tasks = new Task<int>[10];
+
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                sharedDict.TryAdd(i, account.Balance);
+                tasks[i] = new Task<int>((keyObj) =>
+                  {
+                      int currentValue;
+                      bool gotValue;
+
+                      for (int j = 0; j < 1000; j++)
+                      {
+                          gotValue = sharedDict.TryGetValue(keyObj, out currentValue);
+                          sharedDict.TryUpdate(keyObj, currentValue + 1, currentValue);
+                      }
+
+                      int result;
+                      gotValue = sharedDict.TryGetValue(keyObj, out result);
+                      if (gotValue)
+                      {
+                          return result;
+                      }else
+                      {
+                          throw new Exception(String.Format("No data item available for key {0}", keyObj));
+                      }
+
+                  },i);
+
+                tasks[i].Start();
+            }
+
+            for (int i = 0; i < tasks.Length; i++)
+            {
+                account.Balance += tasks[i].Result;
+            }
+
+            // write out the counter value
+            Console.WriteLine("Expected value {0}, Balance: {1}",
+            10000, account.Balance);
+            // wait for input before exiting
+            Console.WriteLine("Press enter to finish");
+            Console.ReadLine();
         }
     }
 

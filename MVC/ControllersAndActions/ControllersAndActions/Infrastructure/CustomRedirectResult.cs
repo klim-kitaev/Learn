@@ -12,7 +12,8 @@ namespace ControllersAndActions.Infrastructure
 
         public override void ExecuteResult(ControllerContext context)
         {
-            throw new NotImplementedException();
+            string fullUrl = UrlHelper.GenerateContentUrl(Url, context.HttpContext);
+            context.HttpContext.Response.Redirect(fullUrl);
         }
     }
 }

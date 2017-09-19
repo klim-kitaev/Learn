@@ -12,10 +12,14 @@ namespace PP
     {
         static void Main(string[] args)
         {
-            DictionaryTest();
+            delegateTest();
+            Console.WriteLine("finsih");
+            Console.ReadLine();
+
         }
 
 
+        #region old
         static void AccountTest()
         {
             var account = new BankAcount();
@@ -68,19 +72,19 @@ namespace PP
             for (int i = 0; i < 5; i++)
             {
                 tasks[i] = new Task(() =>
-                  {
-                      while (true)
-                      {
-                          rwlock.EnterReadLock();
-                          Console.WriteLine("Read lock acquired - count: {0}", rwlock.CurrentReadCount);
-                          tSource.Token.WaitHandle.WaitOne(1000);
+                {
+                    while (true)
+                    {
+                        rwlock.EnterReadLock();
+                        Console.WriteLine("Read lock acquired - count: {0}", rwlock.CurrentReadCount);
+                        tSource.Token.WaitHandle.WaitOne(1000);
 
-                          rwlock.ExitReadLock();
-                          Console.WriteLine("Read lock release - count: {0}", rwlock.CurrentReadCount);
+                        rwlock.ExitReadLock();
+                        Console.WriteLine("Read lock release - count: {0}", rwlock.CurrentReadCount);
 
-                          tSource.Token.ThrowIfCancellationRequested();
-                      }
-                  }, tSource.Token);
+                        tSource.Token.ThrowIfCancellationRequested();
+                    }
+                }, tSource.Token);
 
                 tasks[i].Start();
             }
@@ -133,15 +137,15 @@ namespace PP
             for (int i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = new Task(() =>
-                  {
-                      while (sharedQueue.Count > 0)
-                      {
-                          int queueElement;
-                          bool gotElement = sharedQueue.TryDequeue(out queueElement);
-                          if(gotElement)
+                {
+                    while (sharedQueue.Count > 0)
+                    {
+                        int queueElement;
+                        bool gotElement = sharedQueue.TryDequeue(out queueElement);
+                        if (gotElement)
                             Interlocked.Increment(ref itemCount);
-                      }
-                  });
+                    }
+                });
                 tasks[i].Start();
             }
 
@@ -166,27 +170,28 @@ namespace PP
             {
                 sharedDict.TryAdd(i, account.Balance);
                 tasks[i] = new Task<int>((keyObj) =>
-                  {
-                      int currentValue;
-                      bool gotValue;
+                {
+                    int currentValue;
+                    bool gotValue;
 
-                      for (int j = 0; j < 1000; j++)
-                      {
-                          gotValue = sharedDict.TryGetValue(keyObj, out currentValue);
-                          sharedDict.TryUpdate(keyObj, currentValue + 1, currentValue);
-                      }
+                    for (int j = 0; j < 1000; j++)
+                    {
+                        gotValue = sharedDict.TryGetValue(keyObj, out currentValue);
+                        sharedDict.TryUpdate(keyObj, currentValue + 1, currentValue);
+                    }
 
-                      int result;
-                      gotValue = sharedDict.TryGetValue(keyObj, out result);
-                      if (gotValue)
-                      {
-                          return result;
-                      }else
-                      {
-                          throw new Exception(String.Format("No data item available for key {0}", keyObj));
-                      }
+                    int result;
+                    gotValue = sharedDict.TryGetValue(keyObj, out result);
+                    if (gotValue)
+                    {
+                        return result;
+                    }
+                    else
+                    {
+                        throw new Exception(String.Format("No data item available for key {0}", keyObj));
+                    }
 
-                  },i);
+                }, i);
 
                 tasks[i].Start();
             }
@@ -203,6 +208,122 @@ namespace PP
             Console.WriteLine("Press enter to finish");
             Console.ReadLine();
         }
+
+        static void StringTest()
+        {
+            string str = "Hello";
+            Transform(ref str);
+            Console.WriteLine(str);
+        }
+
+        static void Transform(ref string str)
+        {
+            str = "World";
+        }
+
+        static void ObjectTest()
+        {
+            A b = new A();
+            A bb = b;
+
+            Console.WriteLine(b == bb);
+
+            ChangeA(b);
+
+            Console.WriteLine(b.C);
+            Console.WriteLine(b == bb);
+
+            ChangeA(ref b);
+
+            Console.WriteLine(b.C);
+            Console.WriteLine(b == bb);
+        }
+
+        static void ChangeA(A a)
+        {
+            a = new A { C = 11 };
+        }
+
+        static void ChangeA(ref A a)
+        {
+            a = new A { C = 12 };
+        }
+
+        static void ValueInRefTest()
+        {
+            var r1 = new Rectangle("First Rec", 10, 10, 50, 50);
+            var r2 = r1;
+
+        }
+
+        #endregion
+
+
+        static void delegateTest()
+        {
+            var myCar = new Car();
+            myCar.listOfHandlers += CallWhenExploded;
+            myCar.Accelarete(10);
+
+            myCar.listOfHandlers += CallHereToo;
+            myCar.Accelarete(10);
+
+        }
+
+        static void CallWhenExploded(object sender,EventArgs e)
+        { Console.WriteLine(); }
+        static void CallHereToo(object sender, EventArgs e)
+        { Console.WriteLine(); }
+
+
+    }
+
+
+    public class Car
+    {
+        public delegate void CarEngineHandler(object sender,EventArgs e);
+
+        public event EventHandler listOfHandlers;
+        public void Accelarete(int delta)
+        {
+            if (listOfHandlers != null)
+                listOfHandlers(this,new EventArgs());
+        }
+    }
+
+    #region OldClasses
+
+    class ShapeInfo
+    {
+        public string infoString;
+        public ShapeInfo(string info)
+        {
+            infoString = info;
+        }
+    }
+
+    struct Rectangle
+    {
+        public ShapeInfo rectInfo;
+        public int rectTop, rectLeft, rectBottom, rectRight;
+        public Rectangle(string info, int top, int left, int bottom, int right)
+        {
+            rectInfo = new ShapeInfo(info);
+            rectTop = top; rectBottom = bottom;
+            rectLeft = left; rectRight = right;
+        }
+        public void Display()
+        {
+            Console.WriteLine("String = {0}, Top = {1}, Bottom = {2}, Left = {3}, Right = {4}",
+            rectInfo.infoString, rectTop, rectBottom, rectLeft, rectRight);
+        }
+
+    }
+
+
+    class A
+    {
+        public int C = 10;
     }
 
     class BankAcount
@@ -212,4 +333,6 @@ namespace PP
             get;set;
         }
     }
+
+    #endregion
 }
